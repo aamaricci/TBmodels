@@ -10,7 +10,6 @@ program bhz_fcc_stripe
   integer                                       :: i,j,k,ik,iorb,ilat,ispin
   integer                                       :: ix,iy,iz
   real(8)                                       :: kx,ky,kz
-  real(8),dimension(:),allocatable              :: kxgrid
   real(8),dimension(:,:),allocatable            :: kpath
   real(8),dimension(2)                          :: bk1,bk2,kvec
   complex(8),dimension(:,:,:),allocatable       :: Hkr
@@ -23,6 +22,7 @@ program bhz_fcc_stripe
   complex(8),allocatable,dimension(:,:,:,:,:,:) :: Gmats
   complex(8),allocatable,dimension(:,:,:,:,:,:) :: Greal
   complex(8),allocatable,dimension(:,:,:,:,:,:) :: Sfoo
+  complex(8),allocatable,dimension(:,:,:,:,:,:,:) :: Gkmats
   character(len=20)                             :: file
   logical                                       :: nogf
 
@@ -53,17 +53,11 @@ program bhz_fcc_stripe
 
 
   print*,"Build H(k,R) model"
-  allocate(Kxgrid(Nk))
   allocate(Hkr(Ncell*Ly*Nso,Ncell*Ly*Nso,Nk))
   allocate(Wtk(Nk))
-  ! kxgrid = kgrid(Nk)
-  ! Hkr = TB_build_model(bhz_afm2_edge_model,Ly,Ncell*Nso,kxgrid,[0d0],[0d0],pbc=.false.)
-  do ix=1,Nk
-     kx=dble(ix-1)/Nk
-     kvec = kx*bk1
-     Hkr(:,:,ix) = bhz_afm2_edge_model(kvec,Ly,Ncell*Nso,.false.)
-  enddo
-  Wtk = 1d0/Nk
+  call TB_set_bk(bk1,bk2)
+  call TB_build_model(Hkr,bhz_afm2_edge_model,Ly,Ncell*Nso,Nkvec=[Nk,1,1],pbc=.false.)
+  Wtk = 1d0/Nk  
 
 
 
@@ -78,21 +72,19 @@ program bhz_fcc_stripe
   colors = gray88
   colors(1,:) = [red1,gray88,blue1,gray88,red1,gray88,blue1,gray88]
   colors(Ly,:) =[blue1,gray88,red1,gray88,blue1,gray88,red1,gray88]
-  call TB_solve_path(bhz_afm2_edge_model,Ly,Ncell*Nso,kpath,Nkpath,&
+  call TB_solve_model(bhz_afm2_edge_model,Ly,Ncell*Nso,kpath,Nkpath,&
        colors_name=colors,& 
        points_name=[character(len=10) :: "-pi","0","pi"],&
        file="Eigenbands_afm.nint",pbc=.false.)
 
 
 
-  if(nogf) stop "Called with NOGF=TRUE! Got bands and exit."
+  if(nogf) stop "Called with NOGF=TRUE! Got bands now exiting."
 
 
   !Build the local GF:
-
   allocate(Gmats(Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
   allocate(Greal(Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
-  allocate(Sfoo(Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
   Gmats=zero
   Greal=zero
   call add_ctrl_var(Norb,"norb")
@@ -102,10 +94,16 @@ program bhz_fcc_stripe
   call add_ctrl_var(-wmax,"wini")
   call add_ctrl_var(wmax,"wfin")
   call add_ctrl_var(eps,"eps")
-  Sfoo =zero
-  call dmft_gloc_matsubara(Hkr,Wtk,Gmats,Sfoo,iprint=4)
-  Sfoo =zero
-  call dmft_gloc_realaxis(Hkr,Wtk,Greal,Sfoo,iprint=4)
+  call dmft_gloc_matsubara(Hkr,Wtk,Gmats,zeros(Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
+  call dmft_print_gf_matsubara(pi/beta*(2*arange(1,Lfreq)-1),Gmats,"Gloc",4)
+  call dmft_gloc_realaxis(Hkr,Wtk,Greal,zeros(Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
+  call dmft_print_gf_realaxis(linspace(-wmax,wmax,Lfreq),Greal,"Gloc",4)
+
+
+  allocate(Gkmats(Nk,Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
+  do ik=1,Nk
+     call dmft_gk_matsubara(Hkr(:,:,ik),1d0,Gkmats(ik,:,:,:,:,:,:),zeros(Ncell*Ly,Nspin,Nspin,Norb,Norb,Lfreq))
+  enddo
 
 
   !Build local observables:

@@ -25,24 +25,31 @@ program bhz_2d
   USE DMFT_TOOLS
   implicit none
 
-  integer,parameter                       :: Norb=2,Nspin=2,Nso=Nspin*Norb
-  integer                                 :: Nk,Nktot,Nkpath,Nkx,Npts,L
-  integer                                 :: i,j,k,ik,iorb,jorb
-  integer                                 :: ix,iy,iz
-  real(8)                                 :: kx,ky,kz
-  real(8),dimension(:,:),allocatable      :: kgrid,kpath,ktrims
-  complex(8),dimension(:,:,:),allocatable :: Hk
-  real(8),dimension(:),allocatable        :: Wtk
+  integer,parameter                           :: Norb=2,Nspin=2,Nso=Nspin*Norb
+  integer                                     :: Nk,Nktot,Nkpath,Nkx,Npts,L
+  integer                                     :: Nky,Nlat,Nx,Ny
+  integer                                     :: i,j,k,ik,iorb,jorb,ispin,io
+  integer :: ilat,jlat
+  integer                                     :: ix,iy,iz
+  real(8)                                     :: kx,ky,kz
+  real(8),dimension(:,:),allocatable          :: kgrid,kpath,ktrims,Rgrid
+  integer,dimension(:,:),allocatable          :: Links
+  complex(8),dimension(:,:,:),allocatable     :: Hk
+  complex(8),dimension(:,:,:,:),allocatable   :: Hlat
+  real(8),dimension(:),allocatable            :: Wtk
 
-  real(8)                                 :: chern,z2
-  real(8)                                 :: mh,rh,lambda,delta
-  real(8)                                 :: xmu,beta,eps,Eout(2)
-  real(8)                                 :: dens(Nso)
-  complex(8)                              :: Hloc(Nso,Nso)
-  complex(8),dimension(:,:,:),allocatable :: Gmats,Greal,Sfoo !(Nso,Nso,L)
-  character(len=20)                       :: file
-  logical                                 :: iexist
-  complex(8),dimension(Nso,Nso)           :: Gamma1,Gamma2,Gamma5
+  real(8)                                     :: chern,z2
+  real(8)                                     :: mh,rh,lambda,delta
+  real(8)                                     :: xmu,beta,eps,Eout(2)
+  real(8)                                     :: dens(Nso)
+  complex(8)                                  :: Hloc(Nso,Nso),arg
+  complex(8),dimension(:,:,:,:,:),allocatable :: Gmats,Greal
+  character(len=20)                           :: file
+  logical                                     :: iexist
+  complex(8),dimension(Nso,Nso)               :: Gamma1,Gamma2,Gamma5
+  complex(8),dimension(:,:,:),allocatable     :: ftHk
+  complex(8),dimension(:,:,:,:),allocatable   :: ftHlat
+  real(8),dimension(2)                        :: vecK,vecRi,vecRj
 
   call parse_input_variable(nkx,"NKX","inputBHZ.conf",default=25)
   call parse_input_variable(nkpath,"NKPATH","inputBHZ.conf",default=500)
@@ -65,6 +72,13 @@ program bhz_2d
   call add_ctrl_var(eps,"eps")
 
 
+  Nky  = Nkx
+  Nktot= Nkx*Nky
+  !
+  Nx   = Nkx
+  Ny   = Nkx
+  Nlat = Nx*Ny
+
 
   !SETUP THE GAMMA MATRICES:
   gamma1=kron_pauli( pauli_tau_z, pauli_sigma_x)
@@ -72,13 +86,14 @@ program bhz_2d
   gamma5=kron_pauli( pauli_tau_0, pauli_sigma_z)
 
 
-  !SOLVE AND PLOT THE FULLY HOMOGENOUS PROBLEM:
-  Nktot=Nkx*Nkx
+  call TB_set_ei([1d0,0d0],[0d0,1d0])
+  call TB_set_bk([pi2,0d0],[0d0,pi2])
+
+
+  !SOLVE AND PLOT THE FULLY HOMOGENOUS PROBLEM:  
   write(*,*) "Using Nk_total="//txtfy(Nktot)
   allocate(Hk(Nso,Nso,Nktot))
   allocate(Wtk(Nktot))
-  call TB_set_bk([pi2,0d0],[0d0,pi2])
-
   call TB_build_model(Hk,hk_model,Nso,[Nkx,Nkx])
   Wtk = 1d0/Nktot
 
@@ -110,27 +125,33 @@ program bhz_2d
 
 
   !Build the local GF:
-  allocate(Gmats(Nso,Nso,L))
-  allocate(Greal(Nso,Nso,L))
-  allocate(Sfoo(Nso,Nso,L))
-  Gmats=zero
-  Greal=zero
-  Sfoo =zero
-  call dmft_gloc_matsubara(Hk,Wtk,Gmats,Sfoo,iprint=1)
-  Sfoo =zero
-  call dmft_gloc_realaxis(Hk,Wtk,Greal,Sfoo,iprint=1)
-  do iorb=1,Nso
-     dens(iorb) = fft_get_density(Gmats(iorb,iorb,:),beta)
+  allocate(Gmats(Nspin,Nspin,Norb,Norb,L))
+  allocate(Greal(Nspin,Nspin,Norb,Norb,L))
+  call dmft_gloc_matsubara(Hk,Wtk,Gmats,zeros(Nspin,Nspin,Norb,Norb,L))
+  call dmft_gloc_realaxis(Hk,Wtk,Greal,zeros(Nspin,Nspin,Norb,Norb,L))
+  call dmft_print_gf_matsubara(pi/beta*(2*arange(1,L)-1),Gmats,"Gloc",1)
+  call dmft_print_gf_realaxis(linspace(-10d0,10d0,L),Greal,"Gloc",1)
+
+
+
+  !Occupation:
+  do ispin=1,Nspin
+     do iorb=1,Norb
+        io = iorb+(ispin-1)*Norb
+        dens(io) = fft_get_density(Gmats(ispin,ispin,iorb,iorb,:),beta)
+     enddo
   enddo
-  !plot observables
   open(10,file="observables.nint")
   write(10,"(20F20.12)")(dens(iorb),iorb=1,Nso),sum(dens)
   close(10)
   write(*,"(A,20F14.9)")"Occupations =",(dens(iorb),iorb=1,Nso),sum(dens)
 
-  Sfoo = zero
-  Eout = dmft_kinetic_energy(Hk,Wtk,Sfoo)
-  print*,Eout
+
+
+  !Kinetic Energy
+  call dmft_kinetic_energy(Hk,Wtk,zeros(Nspin,Nspin,Norb,Norb,L))
+
+
 
   !GET Z2 INVARIANT:
   allocate(ktrims(2,4))
@@ -140,7 +161,7 @@ program bhz_2d
 
 
   allocate(kgrid(Nktot,2))
-  kgrid = TB_build_kgrid([Nkx,Nkx])
+  call TB_build_kgrid([Nkx,Nkx],kgrid)
   z2 = 0d0
   do ik=1,Nktot
      z2 = z2 - chern_nk(kgrid(ik,:))/4d0/pi
@@ -148,18 +169,119 @@ program bhz_2d
   print*,z2*(2*pi/Nkx)*(2*pi/Nkx)  
   z2=-simps2d(chern_nk,[-pi,pi],[-pi,pi],N0=200,iterative=.false.)
   print*,z2/4d0/pi
-
+  deallocate(kgrid)
 
   call get_Chern_Number(Hk,[Nkx,Nkx],2,Nkx/pi2*Nkx/pi2,z2)
   print*,z2
 
   ! call get_shcond()
 
+  deallocate(Hk)
+
+
+  !##################################################################
+
+
+  allocate(Hlat(Nso,Nso,Nlat,Nlat))
+  allocate(Hk(Nso,Nso,Nktot))
+
+
+  !>Build direct Lattice Hamiltonian
+  allocate(Links(4,2))          !Links: right,up,left,down
+  Links(1,:) = [1,0]
+  Links(2,:) = [0,1]
+  Links(3,:) = -Links(1,:)
+  Links(4,:) = -Links(2,:)
+  call TB_build_model(Hlat,ts_model,Nso,[Nx,Ny],Links)
+  !
+  !>Build reciprocal Lattice Hamiltonian
+  call TB_build_model(Hk,hk_model,Nso,[Nkx,Nkx])
+
+
+  print*,""
+  print*,""
+  print*,""
+
+
+
+  allocate(Kgrid(Nktot,2))
+  call TB_build_kgrid([Nkx,Nkx],Kgrid)
+  allocate(Rgrid(Nlat,2))
+  call TB_build_Rgrid([Nx,Ny],Rgrid)
+
+
+  !Build up the K-space Hamiltonian thru FT
+  print*,"RECIPROCAL SPACE: H_bhz(kx,ky)=FT[H_bhz(i,j)]"
+  allocate(ftHk(Nso,Nso,Nktot))
+  allocate(ftHlat(Nso,Nso,Nlat,Nlat))
+
+
+  !> from Hlat --> Hk = FT(Hlat)
+  ftHk=zero
+  call start_timer
+  do ik=1,Nktot
+     vecK = Kgrid(ik,:)
+     do ilat=1,Nlat
+        vecRi = Rgrid(ilat,:)
+        do jlat=1,Nlat
+           vecRj = Rgrid(jlat,:)
+           !
+           arg=dot_product(vecK,vecRj-vecRi)
+           !
+           ftHk(:,:,ik)=ftHk(:,:,ik) + exp(-xi*arg)*Hlat(:,:,ilat,jlat)/Nlat
+           !
+        enddo
+     enddo
+     call eta(ik,Nktot)
+  enddo
+  where(abs(ftHk)<1.d-6)ftHk=zero
+  call stop_timer
+
+  ftHk = ftHk-Hk
+  print*,"Identity test for Hk:"
+  if(sum(abs(ftHk))>1d-6)then
+     print*,"Failed! :-("
+  else
+     print*,"Passed! :-)"
+  endif
+
+  print*,""
+  print*,""
+  print*,""
+
+  !Build up the real-space Hamiltonian thru FT:"
+  print*,"REAL SPACE:       H_bhz(i,j)=FT^-1(H_bhz(kx,ky))"
+  ftHlat=zero
+  call start_timer
+  do ik=1,Nktot
+     vecK = Kgrid(ik,:)
+     !
+     do ilat=1,Nlat
+        vecRi = Rgrid(ilat,:)
+        do jlat=1,Nlat
+           vecRj = Rgrid(jlat,:)
+           !
+           arg=dot_product(vecK,vecRj-vecRi)
+           !
+           ftHlat(:,:,ilat,jlat)= ftHlat(:,:,ilat,jlat) + exp(xi*arg)*Hk(:,:,ik)/Nktot!hk_model(vecK,Nso)/Nktot
+        enddo
+     enddo
+     call eta(ik,Nktot)
+  enddo
+  where(abs(Hlat)<1.d-6)Hlat=zero
+  call stop_timer
+
+  ftHlat = ftHlat-Hlat
+  print*,"Identity test for Hlat:"
+  if(sum(abs(ftHlat))>1d-6)then
+     print*,"Failed! :-("
+  else
+     print*,"Passed! :-)"
+  endif
+
 
 
 contains
-
-
 
 
   function hk_model(kpoint,N) result(hk)
@@ -173,11 +295,90 @@ contains
     ky=kpoint(2)
     ek = -1d0*(cos(kx)+cos(ky))
     Hk = (Mh+ek)*Gamma5 + lambda*sin(kx)*Gamma1 + lambda*sin(ky)*Gamma2
-    ! Hk(1,4) = -delta ; Hk(4,1)=-delta
-    ! Hk(2,3) =  delta ; Hk(3,2)= delta
-    ! Hk(1,3) = xi*rh*(sin(kx)-xi*sin(ky))
-    ! Hk(3,1) =-xi*rh*(sin(kx)+xi*sin(ky))
   end function hk_model
+
+
+
+  function ts_model(link,Nso) result(Hts)
+    integer                       :: link
+    integer                       :: Nso
+    complex(8),dimension(Nso,Nso) :: Hts
+    select case(link)
+    case (0) !LOCAL PART
+       Hts =  Mh*Gamma5
+    case (1) !RIGHT HOPPING
+       Hts = -0.5d0*Gamma5 + xi*0.5d0*lambda*Gamma1
+    case (2) !UP HOPPING
+       Hts = -0.5d0*Gamma5 + xi*0.5d0*lambda*Gamma2
+    case (3) !LEFT HOPPING
+       Hts = -0.5d0*Gamma5 - xi*0.5d0*lambda*Gamma1
+    case (4) !DOWN HOPPING
+       Hts = -0.5d0*Gamma5 - xi*0.5d0*lambda*Gamma2
+    case default 
+       stop "ts_model ERROR: link != {0,...,4}"
+    end select
+  end function ts_model
+
+
+
+
+  ! !+----------------------------------------------------------------+
+  ! !PURPOSE  : Get the BHZ lattice Hamiltonian, using Nrow,Ncol
+  ! !+----------------------------------------------------------------+
+  ! subroutine get_Hij_model(Nx,Ny,Nso,pbc,Hij)
+  !   integer                                     :: Nx
+  !   integer                                     :: Ny
+  !   integer                                     :: Nso
+  !   complex(8),dimension(Nso,Nso,Nx*Ny,Nx*Ny)   :: Hij
+  !   logical                                     :: pbc
+  !   integer                                     :: Nlat,Nlso
+  !   integer                                     :: ix,iy
+  !   integer                                     :: i,jj,link(4)
+  !   !
+  !   Nlat=Nx*Ny
+  !   Nlso=Nlat*Nso
+  !   Hij = 0d0
+  !   !
+  !   do ix=0,Nx-1
+  !      do iy=0,Ny-1
+  !         i= 1 + ix + iy*Nx
+  !         !
+  !         !RIGHT hop 
+  !         link(1)= i + 1
+  !         if((ix+1)==Nx) then
+  !            link(1)=0
+  !            if(pbc)link(1)=1+iy*Nx
+  !         end if
+  !         !UP  hop
+  !         link(2)= i + Nx 
+  !         if((iy+1)==Ny) then
+  !            link(2)=0  
+  !            if(pbc)link(2)=ix+1
+  !         end if
+  !         !LEFT  hop
+  !         link(3)= i - 1    
+  !         if((ix-1)<0)     then
+  !            link(3)=0  
+  !            if(pbc)link(3)=Nx+iy*Nx
+  !         end if
+  !         !DOWN  hop
+  !         link(4)= i - Nx 
+  !         if((iy-1)<0)     then
+  !            link(4)=0  
+  !            if(pbc)link(4)=ix+1+(Ny-1)*Nx
+  !         end if
+  !         !
+  !         Hij(:,:,i,i) = Mh*Gamma5
+  !         do jj=1,4
+  !            if(link(jj)==0)cycle
+  !            Hij(:,:,i,link(jj)) = ts_model(jj,Nso)
+  !         enddo
+  !         !
+  !      enddo
+  !   enddo
+  ! end subroutine get_Hij_model
+
+
 
 
 
@@ -371,6 +572,51 @@ contains
   end subroutine Get_Chern_Number
 
 
+
+
+
+
+  subroutine print_Hlat(Hij,file)
+    complex(8),dimension(Nso,Nso,Nlat,Nlat) :: Hij
+    integer                                 :: ilat,jlat,iso,jso,unit
+    character(len=*)                        :: file
+    open(free_unit(unit),file=trim(file))
+    do ilat=1,Nlat
+       do iso=1,Nso
+          do jlat=1,Nlat
+             do jso=1,Nso
+                write(unit,"(F5.2,1x)",advance="no")dreal(Hij(iso,jso,ilat,jlat))
+             enddo
+             write(unit,"(A2)",advance="no")"  "
+          enddo
+          write(unit,*)
+       enddo
+       write(unit,*)""
+    enddo
+    write(unit,*)
+    close(unit)
+  end subroutine print_Hlat
+
+
+  subroutine print_Hk(Hk,file)
+    complex(8),dimension(:,:,:)     :: Hk ![Nso][Nso][Nk]
+    integer                         :: Nso,Nk,unit
+    integer                         :: ik,iso,jso
+    character(len=*)                :: file
+    open(free_unit(unit),file=trim(file))
+    Nk = size(Hk,3)
+    Nso= size(Hk,1)
+    call assert_shape(Hk,[Nso,Nso,Nk],"print_Hk","Hk")
+    do ik=1,Nk
+       do iso=1,Nso
+          write(unit,"(1000(A1,F6.3,A1,F6.3,A5))")&
+               ("(",dreal(Hk(iso,jso,ik)),",",dimag(Hk(iso,jso,ik)),")    ",jso=1,Nso)
+       enddo
+       write(unit,*)
+    enddo
+    write(unit,*)
+    close(unit)
+  end subroutine print_Hk
 
 
 
@@ -590,6 +836,6 @@ contains
   !   vky(3:4,3:4) = conjg(sin(-ky)*pauli_tau_z + lambda*cos(-ky)*pauli_tau_y) 
   ! end function vky_model
 
-end program bhz_2d
+end program
 
 

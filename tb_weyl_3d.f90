@@ -100,34 +100,34 @@ program weyl_3d
        points_name=[character(len=10) :: "M","X","G","X1","A","R","Z","G"],&
        file="Eigenband.nint")
 
-if (gfflag) then
-  !Build the local GF:
-  allocate(Gmats(Nspin,Nspin,Norb,Norb,L))
-  allocate(Greal(Nspin,Nspin,Norb,Norb,L))
-  allocate(Sfoo(Nspin,Nspin,Norb,Norb,L))
-  Gmats=zero
-  Greal=zero
-  Sfoo =zero
-  call dmft_gloc_matsubara(Hk,Wtk,Gmats,Sfoo,iprint=3)
-  Sfoo =zero
-  call dmft_gloc_realaxis(Hk,Wtk,Greal,Sfoo,iprint=3)
+  if (gfflag) then
+     !Build the local GF:
+     allocate(Gmats(Nspin,Nspin,Norb,Norb,L))
+     allocate(Greal(Nspin,Nspin,Norb,Norb,L))
+     allocate(Sfoo(Nspin,Nspin,Norb,Norb,L))
+     Gmats=zero
+     Greal=zero
+     Sfoo =zero
+     call dmft_gloc_matsubara(Hk,Wtk,Gmats,Sfoo,iprint=3)
+     Sfoo =zero
+     call dmft_gloc_realaxis(Hk,Wtk,Greal,Sfoo,iprint=3)
 
 
-  do ispin=1,Nspin
-     do iorb=1,Norb
-        io = iorb + (ispin-1)*Norb
-        dens(io) = fft_get_density(Gmats(ispin,ispin,iorb,iorb,:),beta)
+     do ispin=1,Nspin
+        do iorb=1,Norb
+           io = iorb + (ispin-1)*Norb
+           dens(io) = fft_get_density(Gmats(ispin,ispin,iorb,iorb,:),beta)
+        enddo
      enddo
-  enddo
-  !plot observables
-  open(10,file="observables.nint")
-  write(10,"(20F20.12)")(dens(io),io=1,Nso),sum(dens)
-  close(10)
-  write(*,"(A,20F14.9)")"Occupations =",(dens(iorb),iorb=1,Nso),sum(dens)
+     !plot observables
+     open(10,file="observables.nint")
+     write(10,"(20F20.12)")(dens(io),io=1,Nso),sum(dens)
+     close(10)
+     write(*,"(A,20F14.9)")"Occupations =",(dens(iorb),iorb=1,Nso),sum(dens)
 
-  Sfoo = zero
-  call dmft_kinetic_energy(Hk,Wtk,Sfoo)
-endif
+     Sfoo = zero
+     call dmft_kinetic_energy(Hk,Wtk,Sfoo)
+  endif
 
   !Evaluate the Z2 index:
   !STRONG TI
