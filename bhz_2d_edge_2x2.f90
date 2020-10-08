@@ -298,7 +298,7 @@ contains
 
   function inverse_g0k(zeta,Nlat,N,hk) result(g0k)
     complex(8),dimension(Nlat,N,N)               :: zeta
-w    integer                                      :: Nlat,N,i,j
+    integer                                      :: Nlat,N,i,j
     complex(8),dimension(Nlat*N,Nlat*N)          :: Hk
     complex(8),dimension(Nlat,N,N)               :: Diag
     complex(8),dimension(Nlat-1,N,N)             :: Sub,Over

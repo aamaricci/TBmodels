@@ -101,25 +101,25 @@ program hc_haldane
 
 
 
-  allocate(Gmats(Nlso,Nlso,Lfreq),Greal(Nlso,Nlso,Lfreq),Sfoo(Nlso,Nlso,Lfreq))
-  Gmats=zero
-  Greal=zero
-  Sfoo =zero
-  call add_ctrl_var(beta,"BETA")
-  call add_ctrl_var(xmu,"xmu")
-  call add_ctrl_var(-wmax,"wini")
-  call add_ctrl_var(wmax,"wfin")
-  call add_ctrl_var(eps,"eps")
-  call dmft_gloc_matsubara(Hk,Wtk,Gmats,Sfoo,iprint=1)
-  Sfoo=zero
-  call dmft_gloc_realaxis(Hk,Wtk,Greal,Sfoo,iprint=1)
+  ! allocate(Gmats(Nlso,Nlso,Lfreq),Greal(Nlso,Nlso,Lfreq),Sfoo(Nlso,Nlso,Lfreq))
+  ! Gmats=zero
+  ! Greal=zero
+  ! Sfoo =zero
+  ! call add_ctrl_var(beta,"BETA")
+  ! call add_ctrl_var(xmu,"xmu")
+  ! call add_ctrl_var(-wmax,"wini")
+  ! call add_ctrl_var(wmax,"wfin")
+  ! call add_ctrl_var(eps,"eps")
+  ! call dmft_gloc_matsubara(Hk,Wtk,Gmats,Sfoo)
+  ! Sfoo=zero
+  ! call dmft_gloc_realaxis(Hk,Wtk,Greal,Sfoo)
 
-  do iorb=1,Nlso
-     Ndens(iorb)= fft_get_density(Gmats(iorb,iorb,:),beta)
-  enddo
-  open(10,file="density.nint")
-  write(10,"(10F20.12)")(Ndens(iorb),iorb=1,Nlso),sum(Ndens)
-  close(10)
+  ! do iorb=1,Nlso
+  !    Ndens(iorb)= fft_get_density(Gmats(iorb,iorb,:),beta)
+  ! enddo
+  ! open(10,file="density.nint")
+  ! write(10,"(10F20.12)")(Ndens(iorb),iorb=1,Nlso),sum(Ndens)
+  ! close(10)
 
 
   !CHERN NUMBERS:
@@ -136,9 +136,9 @@ program hc_haldane
      enddo
   enddo
 
-  ! BZ_area=(4*pi)**2/6/sqrt(3d0)
-  ! chern=-simps2d(chern_nk,[-pi,pi-pi2/Nk],[-pi,pi-pi2/Nk])*BZ_area/pi2/pi2
-  ! print*,chern
+  BZ_area=(4*pi)**2/6/sqrt(3d0)
+  chern=-simps2d(chern_nk,[-pi,pi-pi2/Nk],[-pi,pi-pi2/Nk])*BZ_area/pi2/pi2
+  print*,chern
   call get_Chern_number(BlochStates,chern,Berry_curvature,Nk/pi2*Nk/pi2)
   print*,chern
   call splot3d("Berry_Curvature.nint",kxgrid,kygrid,Berry_Curvature)
@@ -147,7 +147,7 @@ program hc_haldane
   write(10,*)nint(chern),chern
   close(10)
 
-  write(*,"(A,10F14.9)")"Occupations =",(Ndens(iorb),iorb=1,Nlso),sum(Ndens)
+  ! write(*,"(A,10F14.9)")"Occupations =",(Ndens(iorb),iorb=1,Nlso),sum(Ndens)
   write(*,"(A,I3)")"Chern num.  =",nint(chern)
 
 

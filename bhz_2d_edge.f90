@@ -3,26 +3,28 @@ program bhz_fcc_stripe
   USE DMFT_TOOLS
   implicit none
 
-  integer,parameter                             :: Norb=2,Nspin=2,Nso=Nspin*Norb
-  integer                                       :: Lmats,Lreal
-  integer                                       :: Nk,Nktot,Nkpath,Nkx,Ly,Npts,Nslat
-  integer                                       :: Nx,Ny
-  integer                                       :: i,iy,j,k,ik,ispin,iorb,jorb,ilat,jlat
-  integer                                       :: iso,jso,io,jo,ii,jj
-  real(8),dimension(2)                          :: bk1
-  real(8),dimension(:),allocatable              :: kxgrid
-  real(8),dimension(:,:),allocatable            :: kpath,dens,rho,zed
-  complex(8),dimension(:,:,:),allocatable       :: Hk,Hkr,Gk
-  real(8),dimension(:),allocatable              :: Wtk
-  complex(8),dimension(Nso,Nso)                 :: Gamma1,Gamma2,Gamma5
-  type(rgb_color),dimension(:,:),allocatable    :: colors
+  integer,parameter                               :: Norb=2,Nspin=2,Nso=Nspin*Norb
+  integer                                         :: Lmats,Lreal
+  integer                                         :: Nk,Nktot,Nkpath,Nkx,Ly,Npts,Nslat
+  integer                                         :: Nx,Ny
+  integer                                         :: i,iy,j,k,ik,ispin,iorb,jorb,ilat,jlat
+  integer                                         :: iso,jso,io,jo,ii,jj
+  real(8),dimension(2)                            :: bk1
+  real(8),dimension(:),allocatable                :: kxgrid
+  real(8),dimension(:,:),allocatable              :: kpath,dens,rho,zed
+  complex(8),dimension(:,:,:),allocatable         :: Hk,Hkr,Gk
+  real(8),dimension(:),allocatable                :: Wtk,wreal,kgrid
+  complex(8),dimension(Nso,Nso)                   :: Gamma1,Gamma2,Gamma5
+  type(rgb_color),dimension(:,:),allocatable      :: colors
 
-  real(8)                                       :: mh,lambda,e0
-  real(8)                                       :: xmu,beta,eps,wini,wfin
-  complex(8),dimension(:,:,:,:,:,:),allocatable :: Gmats,Greal
+  real(8)                                         :: mh,lambda,e0
+  real(8)                                         :: xmu,beta,eps,wini,wfin
+  complex(8),dimension(:,:,:,:,:,:),allocatable   :: Gmats,Greal
+  complex(8),dimension(:,:,:,:,:,:,:),allocatable :: Gkreal
+  real(8),dimension(:,:,:),allocatable            :: Akreal
 
-  character(len=20)                             :: file,nkstring
-  logical                                       :: iexist,nogf
+  character(len=20)                               :: file,nkstring
+  logical                                         :: iexist,nogf
 
   call parse_input_variable(nkx,"NKX","inputBHZ.conf",default=25)
   call parse_input_variable(Ly,"Ly","inputBHZ.conf",default=50)
@@ -41,6 +43,13 @@ program bhz_fcc_stripe
   call parse_input_variable(nogf,"NOGF","inputBHZ.conf",default=.false.)
   call save_input_file("inputBHZ.conf")
 
+  call add_ctrl_var(Norb,"norb")
+  call add_ctrl_var(Nspin,"nspin")
+  call add_ctrl_var(beta,"BETA")
+  call add_ctrl_var(xmu,"xmu")
+  call add_ctrl_var(wini,'wini')
+  call add_ctrl_var(wfin,'wfin')
+  call add_ctrl_var(eps,"eps")
   if(mod(Ly,2)/=0)stop "Error. Please choose use Ly%2=0"
 
 
@@ -60,14 +69,11 @@ program bhz_fcc_stripe
 
   print*,"Build H(k,R) model"
   call TB_set_bk(bk1)
-  call TB_build_model(Hkr,bhz_edge_model,Ly,Nso,Nkvec=[Nkx,1,1],pbc=.false.)
-  Wtk = 1d0/Nkx
-
-
 
   print*,"Solve H(k,R) along -pi:pi"
   Npts=3
-  allocate(Kpath(Npts,1))
+  Nktot = (Npts-1)*Nkpath
+  allocate(Kpath(Npts,1))  
   kpath(1,:)=[-1]*pi
   kpath(2,:)=[ 0]*pi
   kpath(3,:)=[ 1]*pi
@@ -81,6 +87,9 @@ program bhz_fcc_stripe
        file="Eigenbands.nint",pbc=.false.)
 
 
+  call TB_build_model(Hkr,bhz_edge_model,Ly,Nso,Nkvec=[Nkx,1,1],pbc=.false.)
+  Wtk = 1d0/Nkx
+
   if(nogf) stop "Called with NOGF=TRUE! Got bands and exit."
 
   !Build the local GF:
@@ -88,6 +97,7 @@ program bhz_fcc_stripe
   allocate(Greal(Ly,Nspin,Nspin,Norb,Norb,Lreal))
   Gmats=zero
   Greal=zero
+  
   call add_ctrl_var(Norb,"norb")
   call add_ctrl_var(Nspin,"nspin")
   call add_ctrl_var(beta,"BETA")
@@ -99,6 +109,7 @@ program bhz_fcc_stripe
   call dmft_print_gf_matsubara(Gmats,"Gloc",4)
   call dmft_gloc_realaxis(Hkr,Wtk,Greal,zeros(Ly,Nspin,Nspin,Norb,Norb,Lreal))
   call dmft_print_gf_realaxis(Greal,"Gloc",4)
+
 
 
   !Build local observables:
@@ -119,9 +130,38 @@ program bhz_fcc_stripe
   close(10)
   close(11)
 
+  deallocate(Hkr)
+  allocate(Hkr(Nslat,Nslat,Nktot))
+  call TB_build_model(Hkr,bhz_edge_model,Ly,Nso,kpath,Nkpath,pbc=.false.)
+  
+  allocate(Gkreal(Nktot,Ly,Nspin,Nspin,Norb,Norb,Lreal))
+  call start_timer
+  do ik=1,Nktot
+     call dmft_gk_realaxis(Hkr(:,:,ik),1d0,Gkreal(ik,:,:,:,:,:,:),zeros(Ly,Nspin,Nspin,Norb,Norb,Lreal))
+     call eta(ik,Nktot)
+  enddo
+  call stop_timer
+  !
+  allocate(Akreal(Nktot,Ly,Lreal))
+  Akreal = zero
+  do ispin=1,Nspin
+     do iorb=1,Norb
+        Akreal = Akreal -dimag(Gkreal(:,:,ispin,ispin,iorb,iorb,:))/pi/Nspin/Norb
+     enddo
+  enddo
+  !
+  allocate(wreal(Lreal))
+  allocate(kgrid(Nktot))
+  wreal = linspace(wini,wfin,Lreal)
+  kgrid = linspace(-pi,pi,Nktot,iend=.false.)
+  call splot("GLoc_nso11.dat",wreal,sum(Akreal(:,1,:),1)/Nktot)
+  call splot3d("zAkw_nso11.dat",kgrid,wreal,Akreal(:,1,:))
+  call splot3d("zAkw_nso22.dat",kgrid,wreal,Akreal(:,2,:))
+  call splot3d("zAkw_nso33.dat",kgrid,wreal,Akreal(:,3,:))
+  call splot3d("zAkw_nso44.dat",kgrid,wreal,Akreal(:,4,:))
+  call splot3d("zAkw_nso55.dat",kgrid,wreal,Akreal(:,5,:))
 
-
-
+  
 contains
 
 

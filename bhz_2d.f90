@@ -28,8 +28,8 @@ program bhz_2d
   integer,parameter                           :: Norb=2,Nspin=2,Nso=Nspin*Norb
   integer                                     :: Nk,Nktot,Nkpath,Nkx,Npts,L
   integer                                     :: Nky,Nlat,Nx,Ny
-  integer                                     :: i,j,k,ik,iorb,jorb,ispin,io
-  integer :: ilat,jlat
+  integer                                     :: i,j,k,ik,iorb,jorb,ispin,io,jo
+  integer                                     :: ilat,jlat
   integer                                     :: ix,iy,iz
   real(8)                                     :: kx,ky,kz
   real(8),dimension(:,:),allocatable          :: kgrid,kpath,ktrims,Rgrid
@@ -44,6 +44,7 @@ program bhz_2d
   real(8)                                     :: dens(Nso)
   complex(8)                                  :: Hloc(Nso,Nso),arg
   complex(8),dimension(:,:,:,:,:),allocatable :: Gmats,Greal
+  complex(8),dimension(:,:,:,:,:,:),allocatable :: iGmats,iGreal
   character(len=20)                           :: file
   logical                                     :: iexist
   complex(8),dimension(Nso,Nso)               :: Gamma1,Gamma2,Gamma5
@@ -129,8 +130,8 @@ program bhz_2d
   allocate(Greal(Nspin,Nspin,Norb,Norb,L))
   call dmft_gloc_matsubara(Hk,Wtk,Gmats,zeros(Nspin,Nspin,Norb,Norb,L))
   call dmft_gloc_realaxis(Hk,Wtk,Greal,zeros(Nspin,Nspin,Norb,Norb,L))
-  call dmft_print_gf_matsubara(pi/beta*(2*arange(1,L)-1),Gmats,"Gloc",1)
-  call dmft_print_gf_realaxis(linspace(-10d0,10d0,L),Greal,"Gloc",1)
+  call dmft_print_gf_matsubara(Gmats,"Gloc",1)
+  call dmft_print_gf_realaxis(Greal,"Gloc",1)
 
 
 
@@ -192,12 +193,32 @@ program bhz_2d
   Links(2,:) = [0,1]
   Links(3,:) = -Links(1,:)
   Links(4,:) = -Links(2,:)
-  call TB_build_model(Hlat,ts_model,Nso,[Nx,Ny],Links)
+  call TB_build_model(Hlat,ts_model,Nso,[Nx,Ny],Links,pbc=.false.)
   !
   !>Build reciprocal Lattice Hamiltonian
-  call TB_build_model(Hk,hk_model,Nso,[Nkx,Nkx])
+  call TB_build_model(Hk,hk_model,Nso,[Nkx,Nkx],wdos=.false.)
 
 
+  allocate(iGmats(Nlat,Nspin,Nspin,Norb,Norb,L))
+  allocate(iGreal(Nlat,Nspin,Nspin,Norb,Norb,L))
+  allocate(ftHk(Nlat*Nso,Nlat*Nso,1))
+
+  do ilat=1,Nlat
+     do jlat=1,Nlat
+        do io=1,Nso
+           do jo=1,Nso
+              i = io + (ilat-1)*Nso
+              j = jo + (jlat-1)*Nso
+              ftHk(i,j,1) = Hlat(io,jo,ilat,jlat)
+           enddo
+        enddo
+     enddo
+  enddo
+  call dmft_gloc_matsubara(ftHk,[1d0],iGmats,zeros(Nlat,Nspin,Nspin,Norb,Norb,L))
+  call dmft_gloc_realaxis(ftHk,[1d0],iGreal,zeros(Nlat,Nspin,Nspin,Norb,Norb,L))
+  call dmft_print_gf_matsubara(iGmats,"ftGij",4)
+  call dmft_print_gf_realaxis(iGreal,"ftGij",4)
+  deallocate(iGmats,iGreal,ftHk)
   print*,""
   print*,""
   print*,""
@@ -237,6 +258,7 @@ program bhz_2d
   where(abs(ftHk)<1.d-6)ftHk=zero
   call stop_timer
 
+
   ftHk = ftHk-Hk
   print*,"Identity test for Hk:"
   if(sum(abs(ftHk))>1d-6)then
@@ -270,6 +292,8 @@ program bhz_2d
   enddo
   where(abs(Hlat)<1.d-6)Hlat=zero
   call stop_timer
+
+
 
   ftHlat = ftHlat-Hlat
   print*,"Identity test for Hlat:"
@@ -836,6 +860,6 @@ contains
   !   vky(3:4,3:4) = conjg(sin(-ky)*pauli_tau_z + lambda*cos(-ky)*pauli_tau_y) 
   ! end function vky_model
 
-end program
+end program bhz_2d
 
 

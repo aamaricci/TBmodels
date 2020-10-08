@@ -5,15 +5,12 @@ FC=mpif90
 PLAT=gnu
 
 
-##$ SET THE LOCATION OF YOU PROGRAM DRIVER (default is ./drivers)
-DIR =./drivers
-
 ##$ SET THE TARGET DIRECTORY WHERE TO PUT THE EXECUTABLE (default if $HOME/.bin in the PATH)
 DIREXE=$(HOME)/.bin
 
 
 ##$ CHOOSE THE MODEL BY SELECTING THE PROGRAM DRIVER
-EXE=tb_weyl_3d
+EXE=triangular_pxpy
 
 
 ##$ SET THE LOCATION WHERE TO PLACE THE EXECUTABLE (default is $HOME/.bin)
@@ -21,7 +18,6 @@ DIREXE=$(HOME)/.bin
 
 
 ##$ SET INCLUDE AND LINK OPTIONS USING pkg-config
-#INCARGS=$(shell pkg-config --cflags --libs-only-L dmft_tools scifor)
 INCARGS=$(shell pkg-config --cflags dmft_tools scifor)
 LIBARGS=$(shell pkg-config --libs   dmft_tools scifor)
 #-ldmft_tools -lscifor
@@ -36,7 +32,7 @@ endif
 ifeq ($(PLAT),gnu)
 FFLAG = -O2 -ffree-line-length-none
 DFLAG = -O0 -p -g -fimplicit-none -Wsurprising  -Waliasing -fwhole-file -fcheck=all -pedantic -fbacktrace -ffree-line-length-none
-OFLAG = -O3 -ffast-math -march=native -funroll-all-loops -fno-protect-parens -flto -ffree-line-length-none
+OFLAG = -O3 -ffast-math -march=native -funroll-loops -ffree-line-length-none
 FPPFLAG =-cpp
 endif
 

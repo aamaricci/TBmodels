@@ -1,0 +1,78 @@
+ NK=10                                         !
+ NLAT=1                                        !
+ NKPATH=20                                     !
+ NREAD = 2.0                                   !
+ WMIXING=1.000000000E-01                       !
+ COMPUTEG0LOC=F                                !
+ GEOMETRY=bulk                                 !
+ ZSYMMETRY=FERRO                               !
+ BULKMAGSYM=F                                  !
+ COMPUTEEK=F                                   !
+ DIAGLOCAL=F                                   !
+ NORB=3                                        !Number of impurity orbitals.
+ NBATH=3                                       !Number of bath sites:(normal=>Nbath per orb)(hybrid=>Nbath total)(replica=>Nbath=Nreplica)
+ NSPIN=1                                       !Number of spin degeneracy (max 2)
+ ULOC=1.00d0,1.00d0,1.00d0      
+ UST=0.80d0                                                      !Value of the inter-orbital interaction term
+ JH=0.10d0                                                       !Hunds coupling
+ JX=0.10d0                                                       !S-E coupling
+ JP=0.10d0                                                       !P-H coupling
+ BETA=250.000000000                           !Inverse temperature, at T=0 is used as a IR cut-off.
+ XMU=10.9572                    !Chemical potential. If HFMODE=T, xmu=0 indicates half-filling condition.
+ DELTASC=2.000000000E-02                       !Value of the SC symmetry breaking term.
+ NLOOP=5                                        !Max number of DMFT iterations.
+ DMFT_ERROR=1.000000000E-05                    !Error threshold for DMFT convergence
+ SB_FIELD=1.000000000E-01                      !Value of a symmetry breaking field for magnetic solutions.
+ ED_TWIN=T                                     !flag to reduce (T) or not (F,default) the number of visited sector using twin symmetry.
+ ED_SPARSE_H=T                                 !flag to select  storage of sparse matrix H (mem--, cpu++) if TRUE, or direct on-the-fly H*v product (mem++, cpu--) if FALSE
+ ED_SECTORS=T                                  !flag to reduce sector scan for the spectrum to specific sectors +/- ed_sectors_shift.
+ ED_SECTORS_SHIFT=2                            !shift to ed_sectors
+ ED_PRINT_SIGMA=T                              !flag to print impurity Self-energies
+ ED_PRINT_G=T                                  !flag to print impurity Greens function
+ ED_PRINT_G0=T                                 !flag to print non-interacting impurity Greens function
+ NSUCCESS=1                                    !Number of successive iterations below threshold for convergence
+ LMATS=5000                                    !Number of Matsubara frequencies.
+ LREAL=5000                                    !Number of real-axis frequencies.
+ LTAU=1000                                     !Number of imaginary time points.
+ LFIT=1000                                     !Number of Matsubara frequencies used in the \Chi2 fit.
+ NREAD=0.d0                                    !Objective density for fixed density calculations.
+ NERR=1.000000000E-04                          !Error threshold for fixed density calculations.
+ NDELTA=1.000000000E-01                        !Initial step for fixed density calculations.
+ WINI=-5.000000000                             !Smallest real-axis frequency
+ WFIN=5.000000000                              !Largest real-axis frequency
+ CHIFLAG=F                                     !Flag to activate spin susceptibility calculation.
+ JHFLAG=T                                      !Flag to include full SU(2) invariant term: spin-flip, pair-hopping.
+ HFMODE=F                                      !Flag to set the Hartree form of the interaction (n-1/2). see xmu.
+ EPS=1.000000000E-02                           !Broadening on the real-axis.
+ CUTOFF=1.000000000E-05                        !Spectrum cut-off, used to determine the number states to be retained.
+ GS_THRESHOLD=1.000000000E-05                  !Energy threshold for ground state degeneracy loop up
+ HWBAND=1.000000000                            !half-bandwidth for the bath initialization: flat in -hwband:hwband
+ LANC_NSTATES_SECTOR=1                         !Initial number of states per sector to be determined.
+ LANC_NSTATES_TOTAL=1                          !Initial number of total states to be determined.
+ LANC_NSTATES_STEP=2                           !Number of states added to the spectrum at each step.
+ LANC_NCV_FACTOR=20                            !Set the size of the block used in Lanczos-Arpack by multiplying the required Neigen (Ncv=lanc_ncv_factor*Neigen+lanc_ncv_add)
+ LANC_NCV_ADD=0                                !Adds up to the size of the block to prevent it to become too small (Ncv=lanc_ncv_factor*Neigen+lanc_ncv_add)
+ LANC_NITER=512                                !Number of Lanczos iteration in spectrum determination.
+ LANC_NGFITER=200                              !Number of Lanczos iteration in GF determination. Number of momenta.
+ LANC_TOLERANCE=1.000000000E-12                !Tolerance for the Lanczos iterations as used in Arpack and plain lanczos.
+ LANC_DIM_THRESHOLD=512                        !Min dimension threshold to use Lanczos determination of the spectrum rather than Lapack based exact diagonalization.
+ CG_NITER=500                                  !Max. number of Conjugate-Gradient iterations.
+ CG_SCHEME=weiss                               !Conjugate-Gradient fit scheme: delta or weiss.
+ CG_FTOL=1.000000000E-05                       !Conjugate-Gradient tolerance.
+ CG_METHOD=0                                   !Conjugate-Gradient method: 0=NR, 1=minimize, 2=CG+.
+ CG_STOP=0                                     !Conjugate-Gradient stopping condition.
+ CG_EPS=1.000000000E-06                        !Conjugate-Gradient eps tolerance.
+ CG_WEIGHT=0                                   !Conjugate-Gradient weight form: 0=1.0 ,1=1/n , 2=1/w.
+ ED_MODE=normal                                !Flag to set ED type: normal=normal, superc=superconductive, nonsu2=broken SU(2)
+ ED_PARA=F                                     !Flag to force paramagnetic solution (only used in ed_mode=nonsu2 now).
+ ED_VSF_RATIO=1.000000000E-01                  !Ration of the spin-flip hopping to spin-hold ones in the nonSU2 channel.
+ ED_BATH_NOISE_THR=0.d0                        !Noise added to the impurity hybridization
+ BATH_TYPE=normal                              !flag to set bath type: normal (1bath/imp), hybrid(1bath), replica(1replica/imp)
+ HFILE=hamiltonian                             !File where to retrieve/store the bath parameters.
+ IMPHFILE=inputHLOC.in                         !File read the input local H.
+ LOGFILE=6                                     !LOG unit.
+ ED_VERBOSE=3                                  !Verbosity level: 0=almost nothing --> 3:all.
+ MEMORY=3                                      !
+ JZ_BASIS=F                                    !
+ JZ_MAX=F                                      !
+ JZ_MAX_VALUE=1000.000000000                   !

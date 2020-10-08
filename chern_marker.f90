@@ -76,7 +76,7 @@ subroutine get_local_chern (nx, nky, full_p_projector,
   enddo
 
   !....>  only diagonal elements are needed, but still matmul is much
-  more efficient!
+  !more efficient!
   full_q_projector =  matmul (full_p_projector, matmul(full_q_projector, full_p_projector) )
   do jy = 1,nky
      do jx = 1,nx
