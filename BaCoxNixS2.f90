@@ -7,7 +7,7 @@ program BaCoNiS2
   integer                                 :: Nspin,Nso,Nlso
   integer                                 :: Nk,Nkpath,Nkx,Nky,Nkz,Nkpts
   !
-  integer                                 :: i,j,k,ik,iorb,jorb,ikpoint,Lreal,ispin,info
+  integer                                 :: i,j,k,ik,ikx,iky,iorb,jorb,ikpoint,Lreal,ispin,info
   real(8),dimension(2)                    :: bk1,bk2,ei1,ei2
   real(8),dimension(:,:),allocatable      :: kpath,ktrims
   !
@@ -23,7 +23,7 @@ program BaCoNiS2
   !
   character(len=64)                       :: finput
   complex(8),dimension(:,:,:),allocatable :: rhoK
-  real(8),dimension(:,:),allocatable      :: eK
+  real(8),dimension(:,:),allocatable      :: eK,Kgrid
   real(8)                                 :: filling,Ef,k0,Emin,delta,E0,Eshift
 
   Norb = 2
@@ -78,11 +78,14 @@ program BaCoNiS2
   call TB_print_bk
 
   !
-  Nkpts = 2
+  Nkpts = 3
   allocate(Kpath(Nkpts,2))
-  Kpath(1,:) = [0d0,0d0] !Gamma
-  Kpath(2,:) = [pi, 0d0] !X
-  !
+  Kpath(1,:) = [-pi,0d0] !Gamma
+  Kpath(2,:) = [0d0, 0d0] !X
+  Kpath(3,:) = [pi, 0d0] 
+  ! Kpath(4,:) = [0d0, 0d0]
+  ! Kpath(5,:) = [-pi, -pi]
+  ! !
 
   Jz2 =  4*tz22z**2/Ez
   Jxy =  4*txy2z**2/Ez
@@ -118,25 +121,36 @@ program BaCoNiS2
      if(Eval(2)<=Emin)Emin=Eval(2)
   enddo
   print*,Emin
+  deallocate(Hk,Eval)  
   !
-
   E0 = E0-Eshift
   Emin = Emin-Eshift
-  
-  deallocate(Hk,Eval)  
+
   !
   call TB_Solve_model(hk_BaNiS2_5orb,5,Kpath,Nkpath,&
        colors_name=[red1,blue1,gray0,gray1,gray2],&
-       points_name=[character(len=20) :: 'M', '{/Symbol G}'],&
+       points_name=[character(len=20) :: '-M', '{/Symbol G}','M'],&
        file="Eigenbands_5b")
 
   call TB_Solve_model(hk_BaNiS2_2bands,Nso,Kpath,Nkpath,&
        colors_name=[red1,blue1],&
-       points_name=[character(len=20) :: 'M', '{/Symbol G}'],&
+       points_name=[character(len=20) :: '-M', '{/Symbol G}','M'],&
        file="Eigenbands_Dirac")
 
+  Nk = Nkx*Nky
+  allocate(Hk(5,5,1),Eval(5))
+  allocate(Kgrid(Nk,2))
+  call TB_build_kgrid([Nkx,Nky],Kgrid,origin=[-0.5d0,-0.5d0])
+  do ikx=1,Nkx
+     do iky=1,Nky
+        ik = ikx + (iky-1)*Nkx
+        Hk(:,:,1) = hk_BaNiS2_5orb(kgrid(ik,:),5)
+        call eigh(Hk(:,:,1),Eval)
+        write(100,*)kgrid(ik,1),kgrid(ik,2),Eval(4),Eval(5)
+     enddo
+     write(100,*)""
+  enddo
 
-  
 contains
 
 
@@ -252,7 +266,7 @@ contains
   end subroutine TB_get_Fermi
 
   function get_dens(mu) result(dens)
-    real(8)                                     :: mu
+    real(8),intent(in)                          :: mu
     real(8)                                     :: dens
     real(8),dimension(size(Hk,1))               :: ndens
     real(8),dimension(size(Hk,1),size(Hk,1))    :: Rho
