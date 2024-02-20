@@ -22,7 +22,7 @@ program hm_2d
   character(len=20)                       :: file,nkstring
   logical                                 :: iexist,ibool,iener
 
-
+  
   call parse_input_variable(nkx,"NKX","inputHM.conf",default=25)
   call parse_input_variable(nkpath,"NKPATH","inputHM.conf",default=500)
   call parse_input_variable(ts,"TS","inputHM.conf",default=0.5d0)
@@ -46,7 +46,6 @@ program hm_2d
 
 
 
-
   !SOLVE AND PLOT THE FULLY HOMOGENOUS PROBLEM:
   Nktot=Nkx*Nkx ;   write(*,*) "Using Nk_total="//txtfy(Nktot)
   allocate(Hk(Nso,Nso,Nktot))
@@ -58,8 +57,8 @@ program hm_2d
   call TB_write_Hloc(Hloc,"Hloc.dat")
 
 
-  call dmft_gloc_matsubara(Hk,Wtk,Gmats,zeros(Nspin,Nspin,Norb,Norb,L))
-  call dmft_gloc_realaxis(Hk,Wtk,Greal,zeros(Nspin,Nspin,Norb,Norb,L))
+  call dmft_gloc_matsubara(Hk,Gmats,zeros(Nspin,Nspin,Norb,Norb,L))
+  call dmft_gloc_realaxis(Hk,Greal,zeros(Nspin,Nspin,Norb,Norb,L))
   do ispin=1,Nspin
      do iorb=1,Norb
         io = iorb + (ispin-1)*Norb

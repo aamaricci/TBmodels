@@ -149,7 +149,7 @@ program tb_DFT
 
   !Setup Wannier90 or read H(k) from file:
   call start_timer
-  call TB_w90_setup(reg(w90file),nlat=Nlat,norb=Norb,nspin=Nspin,Spinor=spinor,verbose=.true.)
+  call TB_w90_setup(reg(w90file),nlat=[Nlat],norb=[Norb],nspin=Nspin,Spinor=spinor,verbose=.true.)
   call stop_timer("TB_w90_setup")
 
   if(bool_hk)then
@@ -164,6 +164,7 @@ program tb_DFT
      allocate(Hk(Nlso,Nlso,Nktot))
      call start_timer
      call TB_build_model(Hk,Nlso,Nkvec)
+     call TB_reshuffle_hk(Hk,[Nspins,Norbs,Nlats],[2,1,3])
      Hk = TB_reshape_array(Hk,Nin=Nin_w90,OrderIn=OrderIn_w90,&
           OrderOut=[character(len=5):: "Norb","Nspin","Nlat"])
      call TB_write_hk(reg(hkfile),Nkvec)

@@ -48,7 +48,7 @@ program hm_afm_2d
   !RECIPROCAL LATTICE VECTORS:
   bk1=  pi*[ 1d0, -1d0 ]
   bk2=2*pi*[ 0d0,  1d0 ]
-
+  call TB_set_bk(bkx=bk1,bky=bk2)
 
   allocate(Hk(Nlso,Nlso,Nktot))
   allocate(Wtk(Nktot))
@@ -78,9 +78,9 @@ program hm_afm_2d
   call add_ctrl_var(wmax,"wfin")
   call add_ctrl_var(eps,"eps")
   Sfoo =zero
-  call dmft_gloc_matsubara(Hk,Wtk,Gmats,Sfoo,iprint=1)
+  call get_gloc(Hk,Gmats,Sfoo,axis='matsubara')
   Sfoo =zero
-  call dmft_gloc_realaxis(Hk,Wtk,Greal,Sfoo,iprint=1)
+  call get_gloc(Hk,Greal,Sfoo,axis='realaxis')
 
   do iorb=1,Nlso
      n(iorb) = fft_get_density(Gmats(iorb,iorb,:),beta)
@@ -100,8 +100,8 @@ program hm_afm_2d
   kpath(2,:)=kpoint_M1
   kpath(3,:)=kpoint_X1
   kpath(4,:)=kpoint_Gamma
-  call solve_Hk_along_BZpath(Hk_model,Nlso,kpath,Nkpath,&
-       colors_name=[red1,blue1,red1,blue1],&
+  call TB_solve_model(Hk_model,Nlso,kpath,Nkpath,&
+       colors_name=[red,blue],&
        points_name=[character(len=20) :: '$\Gamma$', 'M', 'X', '$\Gamma$'],&
        file="Eigenbands_afm.nint")
 
